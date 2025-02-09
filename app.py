@@ -1,6 +1,4 @@
 import streamlit as st
-from src.question_handler import handle_question
-
 
 # Dynamically adjust path to recognize src as a module
 import streamlit as st
@@ -8,7 +6,10 @@ from src.question_handler import handle_question  # ✅ Now it should work
 
 
 # Streamlit UI
-st.title("Supply Chain Data Assistantt 🤖 ")
+st.title("LogiFlow Data Assistant 🤖")
+
+# Optional: Add a subtitle for clarity
+st.subheader("Optimize Logistics. Streamline Operations.")
 
 # User Input
 user_input = st.text_input("Ask me anything:")
