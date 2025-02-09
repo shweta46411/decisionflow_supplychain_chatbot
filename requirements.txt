@@ -1,3 +1,7 @@
-gurobipy
+streamlit
 openai
+gurobipy
 pandas
+python-dotenv
+flask
+openpyxl

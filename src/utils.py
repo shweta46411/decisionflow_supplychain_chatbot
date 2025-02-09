@@ -1,8 +1,9 @@
-import pandas as pd
+import json
 
-def load_data(filepath):
-    try:
-        data = pd.read_excel(filepath)
-        return data
-    except Exception as e:
-        return None
+def load_json(file_path):
+    with open(file_path, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+def save_json(file_path, data):
+    with open(file_path, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=4)
