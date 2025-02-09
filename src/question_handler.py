@@ -28,7 +28,24 @@ openai.api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 if not openai.api_key:
     raise ValueError("⚠️ OpenAI API Key is missing! Set it in Streamlit Secrets (Production) or .env (Local).")
 
-# Function to get OpenAI response
+
+# ✅ Correct way to initialize the OpenAI client
+import openai
+
+# ✅ Correct OpenAI client initialization
+# client = openai.OpenAI()
+
+# def get_openai_response(prompt, model="gpt-4-turbo"):
+#     response = client.chat.completions.create(  # ✅ Correct API call
+#         model=model,
+#         messages=[{"role": "user", "content": prompt}]
+#     )
+#     return response.choices[0].message.content  # ✅ Correct response retrieval
+
+
+
+
+
 def get_openai_response(prompt, model="gpt-4-turbo"):
     response = openai.ChatCompletion.create(
         model=model,
