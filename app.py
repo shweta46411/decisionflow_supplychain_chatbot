@@ -1,12 +1,11 @@
 import streamlit as st
 from src.question_handler import handle_question
-import sys
-import os
+
 
 # Dynamically adjust path to recognize src as a module
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import streamlit as st
+from src.question_handler import handle_question  # ✅ Now it should work
 
-from question_handler import handle_question
 
 # Streamlit UI
 st.title("Supply Chain Data Assistantt 🤖 ")
