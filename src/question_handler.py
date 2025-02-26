@@ -1,111 +1,105 @@
+# import pandas as pd
+# import os
+# import streamlit as st
+# from src.optimization_model import run_optimization  # Fetch optimized results
+# from src.openai_handler import get_llm_summary  # LLM for structured insights
+
+# # File Paths
+# DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+# DATASETS = {
+#     "transportation": os.path.join(DATA_DIR, "transportation.csv"),
+#     "demands": os.path.join(DATA_DIR, "demands.csv"),
+#     "processing": os.path.join(DATA_DIR, "processing.csv")
+# }
+
+# # Load datasets
+# dataframes = {name: pd.read_csv(path) for name, path in DATASETS.items() if os.path.exists(path)}
+
+# # Run optimization on startup & cache results
+# @st.cache_data
+# def get_optimization_results():
+#     return run_optimization()
+
+# optimized_results = get_optimization_results()
+
+# def classify_question(question):
+#     optimization_keywords = ["optimal", "best", "minimum cost", "least cost", "efficient", "optimized", "allocation"]
+#     descriptive_keywords = ["what", "how much", "which", "how many", "list", "most", "frequently", "ordered"]
+
+#     question = question.lower()
+    
+#     if any(keyword in question for keyword in optimization_keywords):
+#         return "optimization"
+#     elif any(keyword in question for keyword in descriptive_keywords):
+#         return "descriptive"
+#     else:
+#         return "unknown"
+
+# def handle_optimization_question(question):
+#     """Fetches the relevant answer from Gurobi results and enhances it with LLM."""
+#     if optimized_results.empty:
+#         return "⚠️ The optimization model has not produced any results yet."
+
+#     optimized_results.columns = optimized_results.columns.str.lower()
+#     relevant_data = optimized_results[optimized_results.apply(
+#         lambda row: any(keyword in str(row).lower() for keyword in question.lower().split()), axis=1)]
+
+#     if relevant_data.empty:
+#         return "🔍 No specific optimized data found matching your query."
+
+#     # Get LLM response based on the optimized results
+#     llm_response = get_llm_summary(question, relevant_data)
+
+#     # Display data and AI summary in Streamlit
+#     st.subheader("📊 Optimized Results Matching Your Query:")
+#     st.dataframe(relevant_data)
+
+#     return f"**💡 LLM Insight:**\n{llm_response}"
+
+# def handle_descriptive_question(question):
+#     """Fetches the relevant data from CSV files and enhances it with LLM."""
+#     results = []
+    
+#     for name, df in dataframes.items():
+#         df.columns = df.columns.str.lower()
+#         relevant_data = df[df.apply(
+#             lambda row: any(keyword in str(row).lower() for keyword in question.lower().split()), axis=1)]
+
+#         if not relevant_data.empty:
+#             results.append((name, relevant_data.head(5)))  # Take the top 5 matches
+
+#     if not results:
+#         return "🔍 No relevant data found in the available files."
+
+#     response_text = "📊 **Relevant Data Found in:**\n"
+#     for dataset_name, df in results:
+#         response_text += f"- **{dataset_name.capitalize()} Dataset** ({len(df)} records)\n"
+#         st.subheader(f"📂 Data from `{dataset_name}`")
+#         st.dataframe(df)  # Display in Streamlit
+
+#         # Get LLM response for the found dataset
+#         llm_response = get_llm_summary(question, df)
+#         response_text += f"\n**💡 LLM Insight:** {llm_response}\n"
+
+#     return response_text
+
+# def handle_question(user_input):
+#     """Routes user queries to either descriptive (Excel data) or optimization (Gurobi output)."""
+#     question_type = classify_question(user_input)
+
+#     if question_type == "descriptive":
+#         return handle_descriptive_question(user_input)
+#     elif question_type == "optimization":
+#         return handle_optimization_question(user_input)
+#     else:
+#         return "❌ I can only answer based on logistics data available in the provided datasets."
 import pandas as pd
-import openai
-import os
-import streamlit as st
-# Load Dataset
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  
-DATA_PATH = os.path.join(BASE_DIR, "..", "data", "DatasetA.xlsx")  
 
-# Ensure dataset is loaded
-df = None
-if os.path.exists(DATA_PATH):
-    df = pd.read_excel(DATA_PATH)
-else:
-    print("❌ Dataset not found!")
+# Load datasets
+demands_df = pd.read_csv("data/demands.csv")
+processing_df = pd.read_csv("data/processing.csv")
+transportation_df = pd.read_csv("data/transportation.csv")
 
-# OpenAI API Key (Make sure to set this as an environment variable)
-
-
-# ✅ Check if running in a local environment
-if os.path.exists(".env"):
-    from dotenv import load_dotenv
-    load_dotenv()  # Only loads in local development
-
-# ✅ Fetch API key from either .env (local) or Streamlit Secrets (production)
-openai.api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-
-# ✅ Raise an error if the API key is missing
-if not openai.api_key:
-    raise ValueError("⚠️ OpenAI API Key is missing! Set it in Streamlit Secrets (Production) or .env (Local).")
-
-
-# ✅ Correct way to initialize the OpenAI client
-import openai
-
-# ✅ Correct OpenAI client initialization
-# client = openai.OpenAI()
-
-# def get_openai_response(prompt, model="gpt-4-turbo"):
-#     response = client.chat.completions.create(  # ✅ Correct API call
-#         model=model,
-#         messages=[{"role": "user", "content": prompt}]
-#     )
-#     return response.choices[0].message.content  # ✅ Correct response retrieval
-
-
-
-
-
-def get_openai_response(prompt, model="gpt-4-turbo"):
-    response = openai.ChatCompletion.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response["choices"][0]["message"]["content"]
-
-
-def classify_question(question):
-    """Classifies if the question is descriptive based on keywords."""
-    descriptive_keywords = ["what", "how much", "which", "how many", "list", "most", "frequently", "ordered"]
-    question = question.lower()
-    return "descriptive" if any(keyword in question for keyword in descriptive_keywords) else "unknown"
-
-def handle_question(user_input):
-    """Handles user queries by checking dataset first, then OpenAI."""
-    question_type = classify_question(user_input)
-    if question_type == "descriptive":
-        return handle_descriptive(user_input)
-    else:
-        return get_openai_response(user_input)
-
-def handle_descriptive(question):
-    """Handles descriptive queries by searching the dataset and calling OpenAI if needed."""
-    if df is None:
-        return "Dataset not found!"
-
-    try:
-        # Convert column names to lowercase
-        df.columns = df.columns.str.lower()
-
-        # Find relevant rows based on question keywords
-        relevant_data = df[df.apply(lambda row: any(keyword in str(row).lower() for keyword in question.lower().split()), axis=1)]
-
-        # If no relevant data is found, use a small sample
-        if relevant_data.empty:
-            relevant_data = df.head(10)
-
-        # Convert data to dictionary for structured response
-        sample_data = relevant_data.to_dict(orient="records")
-
-        # Create structured prompt for OpenAI
-        prompt = (
-            f"You are a data assistant. Answer the following question strictly based on the provided dataset.\n\n"
-            f"Question: {question}\n"
-            f"Data:\n{sample_data}\n"
-            f"Be concise and consistent in your answers. If the information is not available, say 'The data does not provide a clear answer'."
-        )
-
-        # Call OpenAI for response
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            temperature=0,
-            messages=[
-                {"role": "system", "content": "You are a precise data analyst."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        return response['choices'][0]['message']['content']
-
-    except Exception as e:
-        return f"Error in descriptive question handling: {e}"
+def process_question():
+    """Handles general queries based on available dataset"""
+    return "I received your question, but I need more information to answer."

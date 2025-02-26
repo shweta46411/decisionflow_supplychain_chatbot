@@ -1,0 +1,11 @@
+entity,entity_type,coffee_type,capacity,cost
+supplier1,supplier,light_roast,1150,2.0
+supplier2,supplier,light_roast,1380,2.4
+supplier3,supplier,light_roast,1265,2.1
+supplier1,supplier,dark_roast,1035,2.5
+supplier2,supplier,dark_roast,1150,2.9
+supplier3,supplier,dark_roast,1090,2.6
+roastery1,roastery,light_roast,1150,1.5
+roastery2,roastery,light_roast,1150,1.6
+roastery1,roastery,dark_roast,920,1.8
+roastery2,roastery,dark_roast,920,1.9
