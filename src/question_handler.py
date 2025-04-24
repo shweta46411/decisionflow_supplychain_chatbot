@@ -8,6 +8,7 @@ from src.openai_handler import call_gpt, safe_parse_json, chatbot_response
 from src.optimization_model import run_optimization
 from dotenv import load_dotenv
 from src.utils import file_paths
+from rapidfuzz import process
 
 
 from src.utils import file_paths
