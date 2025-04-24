@@ -5,3 +5,5 @@ pandas
 python-dotenv
 flask
 openpyxl
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.20.0
