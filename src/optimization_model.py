@@ -70,10 +70,10 @@ transportation_df = pd.read_csv("data/transportation.csv")
 import pandas as pd
 from gurobipy import Model, GRB
 
-def run_optimization():
-    demand_df = pd.read_csv("data/demands.csv")
-    processing_df = pd.read_csv("data/processing.csv")
-    transportation_df = pd.read_csv("data/transportation.csv")
+def run_optimization(demand_df, processing_df, transportation_df):
+    # demand_df = pd.read_csv("data/demands.csv")
+    # processing_df = pd.read_csv("data/processing.csv")
+    # transportation_df = pd.read_csv("data/transportation.csv")
 
     model = Model("Supply_Chain_Optimization")
     model.setParam("OutputFlag", 0)  # silent mode

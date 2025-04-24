@@ -1,98 +1,3 @@
-# import pandas as pd
-# import os
-# import streamlit as st
-# from src.optimization_model import run_optimization  # Fetch optimized results
-# from src.openai_handler import get_llm_summary  # LLM for structured insights
-
-# # File Paths
-# DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
-# DATASETS = {
-#     "transportation": os.path.join(DATA_DIR, "transportation.csv"),
-#     "demands": os.path.join(DATA_DIR, "demands.csv"),
-#     "processing": os.path.join(DATA_DIR, "processing.csv")
-# }
-
-# # Load datasets
-# dataframes = {name: pd.read_csv(path) for name, path in DATASETS.items() if os.path.exists(path)}
-
-# # Run optimization on startup & cache results
-# @st.cache_data
-# def get_optimization_results():
-#     return run_optimization()
-
-# optimized_results = get_optimization_results()
-
-# def classify_question(question):
-#     optimization_keywords = ["optimal", "best", "minimum cost", "least cost", "efficient", "optimized", "allocation"]
-#     descriptive_keywords = ["what", "how much", "which", "how many", "list", "most", "frequently", "ordered"]
-
-#     question = question.lower()
-    
-#     if any(keyword in question for keyword in optimization_keywords):
-#         return "optimization"
-#     elif any(keyword in question for keyword in descriptive_keywords):
-#         return "descriptive"
-#     else:
-#         return "unknown"
-
-# def handle_optimization_question(question):
-#     """Fetches the relevant answer from Gurobi results and enhances it with LLM."""
-#     if optimized_results.empty:
-#         return "⚠️ The optimization model has not produced any results yet."
-
-#     optimized_results.columns = optimized_results.columns.str.lower()
-#     relevant_data = optimized_results[optimized_results.apply(
-#         lambda row: any(keyword in str(row).lower() for keyword in question.lower().split()), axis=1)]
-
-#     if relevant_data.empty:
-#         return "🔍 No specific optimized data found matching your query."
-
-#     # Get LLM response based on the optimized results
-#     llm_response = get_llm_summary(question, relevant_data)
-
-#     # Display data and AI summary in Streamlit
-#     st.subheader("📊 Optimized Results Matching Your Query:")
-#     st.dataframe(relevant_data)
-
-#     return f"**💡 LLM Insight:**\n{llm_response}"
-
-# def handle_descriptive_question(question):
-#     """Fetches the relevant data from CSV files and enhances it with LLM."""
-#     results = []
-    
-#     for name, df in dataframes.items():
-#         df.columns = df.columns.str.lower()
-#         relevant_data = df[df.apply(
-#             lambda row: any(keyword in str(row).lower() for keyword in question.lower().split()), axis=1)]
-
-#         if not relevant_data.empty:
-#             results.append((name, relevant_data.head(5)))  # Take the top 5 matches
-
-#     if not results:
-#         return "🔍 No relevant data found in the available files."
-
-#     response_text = "📊 **Relevant Data Found in:**\n"
-#     for dataset_name, df in results:
-#         response_text += f"- **{dataset_name.capitalize()} Dataset** ({len(df)} records)\n"
-#         st.subheader(f"📂 Data from `{dataset_name}`")
-#         st.dataframe(df)  # Display in Streamlit
-
-#         # Get LLM response for the found dataset
-#         llm_response = get_llm_summary(question, df)
-#         response_text += f"\n**💡 LLM Insight:** {llm_response}\n"
-
-#     return response_text
-
-# def handle_question(user_input):
-#     """Routes user queries to either descriptive (Excel data) or optimization (Gurobi output)."""
-#     question_type = classify_question(user_input)
-
-#     if question_type == "descriptive":
-#         return handle_descriptive_question(user_input)
-#     elif question_type == "optimization":
-#         return handle_optimization_question(user_input)
-#     else:
-#         return "❌ I can only answer based on logistics data available in the provided datasets."
 
 import openai
 import pandas as pd
@@ -105,9 +10,17 @@ from dotenv import load_dotenv
 from src.utils import file_paths
 
 
-demand_df = pd.read_csv("data/demands.csv")
-processing_df = pd.read_csv("data/processing.csv")
-transportation_df = pd.read_csv("data/transportation.csv")
+from src.utils import file_paths
+
+# === Pristine dataset copies ===
+_original_demand_df       = pd.read_csv(file_paths["demands.csv"])
+_original_processing_df   = pd.read_csv(file_paths["processing.csv"])
+_original_transportation_df = pd.read_csv(file_paths["transportation.csv"])
+
+# === Working copies (mutable) ===
+demand_df         = _original_demand_df.copy()
+processing_df     = _original_processing_df.copy()
+transportation_df = _original_transportation_df.copy()
 
 # Preview datasets
 def preview_datasets():
@@ -124,7 +37,45 @@ preview_datasets()
 demand_data = demand_df.to_csv(index=False)
 processing_data = processing_df.to_csv(index=False)
 transportation_data = transportation_df.to_csv(index=False)
+import re
 
+# at the top of question_handler.py, add:
+from fuzzywuzzy import process
+import re
+import json, ast
+
+# map of canonical entities → vague user phrases
+fuzzy_entity_map = {
+    "roastery": ["roaster", "roasting site", "coffee factory", "bean processor", "roast house"],
+    "supplier": ["supply center", "supply depot", "source warehouse", "bean source", "provider"],
+    "cafe":     ["coffee shop", "branch", "retail point", "outlet", "customer location"]
+}
+
+def fuzzy_replace_entities(question: str, threshold: int = 85) -> str:
+    """
+    Replace vague user phrases with canonical dataset entity names
+    using fuzzy matching.
+    """
+    for canonical, variants in fuzzy_entity_map.items():
+        for variant in variants:
+            if process.extractOne(variant, [question], score_cutoff=threshold):
+                question = re.sub(
+                    re.escape(variant),
+                    canonical,
+                    question,
+                    flags=re.IGNORECASE
+                )
+    return question
+
+def safe_parse_json(response_text: str):
+    """
+    Try json.loads, then fallback to ast.literal_eval for robustness.
+    """
+    try:
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        return ast.literal_eval(response_text)
+    
 def generate_system_prompt():
     demand_data = demand_df.to_csv(index=False)
     processing_data = processing_df.to_csv(index=False)
@@ -294,6 +245,7 @@ Return ONLY the final JSON output with "file" and "columns".
     return safe_parse_json(output)
     
 
+
 def load_filtered_data(spec):
     valid_files = list(file_paths.keys())
     selected_file = spec.get("file")
@@ -332,7 +284,25 @@ last_optimization_intent = None
 def classify_question(question):
     """Uses GPT-4 to classify a question and logs the result to router_history."""
 
+    
+    question = fuzzy_replace_entities(question)
+
+    # 2️⃣ Lowercase and trim for pattern checks
     question_lower = question.lower().strip()
+        # Manual shortcuts for reset / continue flows
+    reset_kw = {
+        "reset", "start over", "original data", "base data",
+        "revert", "undo changes", "go back", "clear scenario"
+    }
+    continue_kw = {
+        "keep going", "continue", "carry on", "proceed",
+        "same scenario", "more on this", "stay here"
+    }
+    if any(kw in question_lower for kw in reset_kw):
+        return "reset"
+    if any(kw in question_lower for kw in continue_kw):
+        return "continue"
+
     vague_phrases = ["how about", "what about", "based on that", "then", "next", "and", "also"]
     optimization_phrases = [
         "from roasteries to cafes",
@@ -461,6 +431,16 @@ def classify_question(question):
 # 🔁 Global descriptive memory
 descriptive_history = []
 optimization_history = []
+def handle_reset():
+    global demand_df, processing_df, transportation_df, latest_optimization_results
+    demand_df = _original_demand_df.copy()
+    processing_df = _original_processing_df.copy()
+    transportation_df = _original_transportation_df.copy()
+    latest_optimization_results = None
+    return "🔄 Back to the original dataset—ask me any optimization question on the base data."
+
+def handle_continue():
+    return "👍 Great—continuing with your modified scenario. What’s your next question?"
 
 # **Descriptive Question Handling**
 def handle_descriptive(question):
@@ -470,7 +450,11 @@ def handle_descriptive(question):
     descriptive_history.append({"role": "user", "content": question})
 
     # Step 2: Get file and columns to load
-    spec = get_data_specification(question)
+    try:
+       spec = get_data_specification(question)
+    except ValueError as e:
+       # If GPT couldn’t parse a valid file/column spec, return its message
+     return str(e)
 
     # Step 3: Load relevant columns from the appropriate dataset
     df, data_str = load_filtered_data(spec)
@@ -507,7 +491,7 @@ Use the following filtered dataset to answer the user's question. Do not make as
 def handle_what_if(question):
     """Parses the what-if question, modifies the dataset, and runs a new Gurobi optimization."""
 
-    # Use GPT-4 to extract what-if changes from the question
+    # Use o4-mini to extract what-if changes from the question
     modification_prompt = f"""
     You are an expert supply chain assistant. Extract the required dataset modifications from the following what-if question.
 
@@ -521,8 +505,7 @@ def handle_what_if(question):
     """
 
     response = openai.ChatCompletion.create(
-        model="gpt-4",
-        temperature=0,
+        model="o4-mini",
         messages=[{"role": "user", "content": modification_prompt}]
     )
 
@@ -563,7 +546,7 @@ def handle_what_if(question):
         modified_data["transportation"] = modified_transportation
 
     # Run modified optimization model
-    return run_optimization(modified_data)
+    return run_optimization()
 import pandas as pd
 from src.utils import file_paths
 
@@ -577,7 +560,11 @@ def handle_optimization(question):
     # **Ensure that an optimization has been run at least once**
     if latest_optimization_results is None:
         print("\n⚠️ No prior optimization found. Running optimization now...")
-        latest_optimization_results = run_optimization()  # Run optimization if never executed
+        latest_optimization_results = run_optimization(
+            _original_demand_df.copy(),
+            _original_processing_df.copy(),
+            _original_transportation_df.copy()
+)  # Run optimization if never executed
 
     # Convert the question to lowercase for easier handling
     question_lower = question.lower().strip()
@@ -778,6 +765,7 @@ last_optimization_question = None
 
 def extract_modifications_from_question(question):
     """Uses GPT-4 to extract structured dataset modifications from a what-if question."""
+    question = fuzzy_replace_entities(question)
 
     modification_prompt = f"""
     You are an AI assistant that interprets what-if questions related to supply chain optimization.
@@ -800,8 +788,10 @@ def extract_modifications_from_question(question):
         messages=[{"role": "user", "content": modification_prompt}]
     )
 
-    modifications = eval(response["choices"][0]["message"]["content"])  # Convert string to dict
+    text = response["choices"][0]["message"]["content"].strip()
+    modifications = safe_parse_json(text)
     return modifications
+
 
 def apply_modifications(modifications):
     """Applies dataset modifications based on extracted what-if parameters."""
@@ -844,17 +834,20 @@ def apply_modifications(modifications):
 
     return modified_data
 def run_what_if_scenario(question):
-    """Handles a what-if scenario by modifying the dataset and rerunning optimization."""
+    """Handles the full what-if flow, applies your mods, reruns, and returns a text summary."""
+    global demand_df, processing_df, transportation_df, latest_optimization_results
 
-    global demand_df, processing_df, transportation_df
+    # 1️⃣ Reset to pristine
+    demand_df         = _original_demand_df.copy()
+    processing_df     = _original_processing_df.copy()
+    transportation_df = _original_transportation_df.copy()
 
-    # **Extract modification details using GPT-4**
+    # 2️⃣ Normalize & extract
+    question = fuzzy_replace_entities(question)
     modifications = extract_modifications_from_question(question)
+    modified_data  = apply_modifications(modifications)
 
-    # **Apply modifications to the dataset**
-    modified_data = apply_modifications(modifications)
-
-    # **Persist modifications globally**
+    # 3️⃣ Persist the modifications
     if "demand" in modified_data:
         demand_df = modified_data["demand"]
     if "processing" in modified_data:
@@ -862,8 +855,27 @@ def run_what_if_scenario(question):
     if "transportation" in modified_data:
         transportation_df = modified_data["transportation"]
 
-    # **Run optimization with the modified dataset**
-    global latest_optimization_results
-    latest_optimization_results = run_optimization(modified_data)
+    # 4️⃣ Re-run optimization
+    latest_optimization_results = run_optimization(
+    demand_df,
+    processing_df,
+    transportation_df
+)
 
-    return "✅ What-If Scenario Completed! Optimization has been re-run with your modifications."
+    # 5️⃣ Build a text summary exactly like the notebook does:
+    sup2roast = latest_optimization_results.get("supplier_to_roastery", [])
+    roast2cafe = latest_optimization_results.get("roastery_to_cafe", [])
+    total_cost = latest_optimization_results.get("total_cost", 0)
+
+    lines = ["\n📦 **Updated Supplier → Roastery Shipments:**"]
+    for s in sup2roast:
+        lines.append(f"✅ {s['from']} → {s['to']} ({s['coffee_type']}): {s['quantity']:.1f} units")
+
+    lines.append("\n📦 **Updated Roastery → Café Shipments:**")
+    for s in roast2cafe:
+        lines.append(f"✅ {s['from']} → {s['to']} ({s['coffee_type']}): {s['quantity']:.1f} units")
+
+    lines.append(f"\n💰 **Total Optimized Cost:** ${total_cost:,.2f}")
+
+    return "\n".join(lines)
+

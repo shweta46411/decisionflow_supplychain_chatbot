@@ -712,7 +712,8 @@
 #     </div>
 # """, unsafe_allow_html=True)
 import streamlit as st
-from src.question_handler import classify_question, handle_descriptive, run_what_if_scenario, handle_optimization
+from src.question_handler import classify_question, handle_descriptive, run_what_if_scenario, handle_reset, handle_continue,handle_optimization
+
 
 # 🔧 Page config
 st.set_page_config(page_title="LogiFlow Chat", page_icon="🤖", layout="wide")
@@ -737,16 +738,38 @@ def handle_question():
     try:
         question_type = classify_question(question)
 
-        if question_type == "descriptive":
+        if question_type == "reset":
+    # reset globals in question_handler (you'll need to implement handle_reset)
+            response = handle_reset()  
+
+        elif question_type == "continue":
+    # keep using the last what‐if data
+            response = handle_continue()
+
+        elif question_type == "descriptive":
             response = handle_descriptive(question)
+
         elif question_type == "optimization":
             response = handle_optimization(question)
+
         elif question_type == "what-if":
-            response = run_what_if_scenario(question)
+    # run and then append the conversational follow-up
+            summary = run_what_if_scenario(question)
+            response = (
+            summary
+             + "\n\nAll set! I’ve applied that change. "
+            + "Would you like to keep exploring this scenario, or should we switch back to the original numbers? "
+            + "Just say ‘keep going’ or ‘reset.’"
+        )
+
         else:
             response = "❓ I couldn't determine the question type. Please try again."
-    except Exception:
-        response = "🧠 Hmm, I wasn’t able to process that. Try rephrasing it."
+    
+    except Exception as e: 
+            response = "🧠 Hmm, I wasn’t able to process that. Try rephrasing it."
+            print("Error:", Exception)
+            print("What-If Error:", e)
+            import traceback; traceback.print_exc()
 
     st.session_state.messages.append({"role": "bot", "text": response})
     st.session_state.thinking = False
