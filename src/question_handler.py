@@ -13,7 +13,7 @@ from rapidfuzz import process
 
 from src.utils import file_paths
 
-# === Pristine dataset copies ===
+
 _original_demand_df       = pd.read_csv(file_paths["demands.csv"])
 _original_processing_df   = pd.read_csv(file_paths["processing.csv"])
 _original_transportation_df = pd.read_csv(file_paths["transportation.csv"])
@@ -41,7 +41,9 @@ transportation_data = transportation_df.to_csv(index=False)
 import re
 
 # at the top of question_handler.py, add:
-from fuzzywuzzy import process
+from rapidfuzz import process
+
+
 import re
 import json, ast
 
